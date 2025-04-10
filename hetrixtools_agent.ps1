@@ -192,18 +192,16 @@ if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-
 $total_cpuUsage = 0
 $total_diskTime = 0
 
+# determine localized names of CPU performance counters
+$processor = Get-LocalPerfCounterName "Processor"
+$processorTime = Get-LocalPerfCounterName "% Processor Time"
+
 # Collect data loop
 for ($X = 1; $X -le $RunTimes; $X++) {
-    if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Start Loop: $X"}
     # Start both commands as jobs
     $cpuJob = Start-Job -ScriptBlock { 
-        $cpuCounter = Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval $using:CollectEveryXSeconds
+        $cpuCounter = Get-Counter "\$using:processor(_Total)\$using:processorTime" -SampleInterval $using:CollectEveryXSeconds
         return $cpuCounter.CounterSamples.CookedValue
-    }
-
-    $diskJob = Start-Job -ScriptBlock { 
-        $diskCounter = Get-Counter '\PhysicalDisk(_Total)\% Disk Time' -SampleInterval $using:CollectEveryXSeconds
-        return $diskCounter.CounterSamples.CookedValue
     }
 
     # Wait for both jobs to complete
