@@ -509,6 +509,28 @@ $Data = [PSCustomObject]@{
 $Data = $Data | ConvertTo-Json
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Data: $Data"}
 
+function Get-LocalPerfCounterName {
+   param (
+      [Parameter(Mandatory=$true)]
+      $Name
+    )
+
+   $key009 = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\009'
+   $counters009 = (Get-ItemProperty -Path $key009 -Name Counter).Counter.tolower()
+   $index = $counters009.IndexOf($name.tolower())
+   
+   if ($index -eq -1) {
+      $null   # not found
+   }
+   else {
+      $idOfName = $counters009[$index - 1]
+      $keylocal = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
+      $counterslocal = (Get-ItemProperty -Path $keylocal -Name Counter).Counter
+      $indexOfLocalId = $counterslocal.IndexOf($idOfName)
+      $counterslocal[$indexOfLocalId + 1]
+   }
+}
+
 # Send the data
 $APIURL = "https://sm.hetrixtools.net/win/"
 $Headers = @{
