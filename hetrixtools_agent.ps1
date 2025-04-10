@@ -300,7 +300,7 @@ $time = Encode-Base64 -InputString $time
 
 # Get Reboot Required
 $needsRestart = "0"
-if (Test-Path "Rental: "3")
+if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
     $needsRestart = "1"
 }
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Reboot Required: $needsRestart"}
