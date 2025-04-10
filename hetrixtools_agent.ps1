@@ -66,6 +66,28 @@ function Encode-Base64 {
     return $base64String
 }
 
+function Get-LocalPerfCounterName {
+   param (
+      [Parameter(Mandatory=$true)]
+      $Name
+    )
+
+   $key009 = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\009'
+   $counters009 = (Get-ItemProperty -Path $key009 -Name Counter).Counter.tolower()
+   $index = $counters009.IndexOf($name.tolower())
+   
+   if ($index -eq -1) {
+      $null   # not found
+   }
+   else {
+      $idOfName = $counters009[$index - 1]
+      $keylocal = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
+      $counterslocal = (Get-ItemProperty -Path $keylocal -Name Counter).Counter
+      $indexOfLocalId = $counterslocal.IndexOf($idOfName)
+      $counterslocal[$indexOfLocalId + 1]
+   }
+}
+
 function Check-ProcessOrService {
     param (
         [Parameter(Mandatory=$true)]
@@ -188,20 +210,25 @@ $RunTimes = [math]::Floor(60 / $CollectEveryXSeconds)
 
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') RunTimes: $RunTimes"}
 
-# Initialise values
-$total_cpuUsage = 0
-$total_diskTime = 0
-
 # determine localized names of CPU performance counters
-$processor = Get-LocalPerfCounterName "Processor"
-$processorTime = Get-LocalPerfCounterName "% Processor Time"
+$processorInformationName = Get-LocalPerfCounterName "Processor Information"
+$processorUtilityName = Get-LocalPerfCounterName "% Processor Utility"
+
+# determine localized names of Disk performance counters
+$physicalDiskName = Get-LocalPerfCounterName "PhysicalDisk"
+$diskTimeName = Get-LocalPerfCounterName "% Disk Time"
 
 # Collect data loop
 for ($X = 1; $X -le $RunTimes; $X++) {
     # Start both commands as jobs
     $cpuJob = Start-Job -ScriptBlock { 
-        $cpuCounter = Get-Counter "\$using:processor(_Total)\$using:processorTime" -SampleInterval $using:CollectEveryXSeconds
+        $cpuCounter = Get-Counter "\$using:processorInformationName(_Total)\$using:processorUtilityName" -SampleInterval $using:CollectEveryXSeconds
         return $cpuCounter.CounterSamples.CookedValue
+    }
+
+    $diskJob = Start-Job -ScriptBlock { 
+        $diskCounter = Get-Counter "\$using:physicalDiskName(_Total)\$using:diskTimeName" -SampleInterval $using:CollectEveryXSeconds
+        return $diskCounter.CounterSamples.CookedValue
     }
 
     # Wait for both jobs to complete
@@ -506,28 +533,6 @@ $Data = [PSCustomObject]@{
 # Convert the custom object to JSON
 $Data = $Data | ConvertTo-Json
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Data: $Data"}
-
-function Get-LocalPerfCounterName {
-   param (
-      [Parameter(Mandatory=$true)]
-      $Name
-    )
-
-   $key009 = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\009'
-   $counters009 = (Get-ItemProperty -Path $key009 -Name Counter).Counter.tolower()
-   $index = $counters009.IndexOf($name.tolower())
-   
-   if ($index -eq -1) {
-      $null   # not found
-   }
-   else {
-      $idOfName = $counters009[$index - 1]
-      $keylocal = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
-      $counterslocal = (Get-ItemProperty -Path $keylocal -Name Counter).Counter
-      $indexOfLocalId = $counterslocal.IndexOf($idOfName)
-      $counterslocal[$indexOfLocalId + 1]
-   }
-}
 
 # Send the data
 $APIURL = "https://sm.hetrixtools.net/win/"
