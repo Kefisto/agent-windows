@@ -110,10 +110,10 @@ Write-Host "... done."
 # Download the agent
 Write-Host "Downloading the agent..."
 $wc = New-Object System.Net.WebClient
-$wc.DownloadFile("https://raw.githubusercontent.com/kefisto/agent-windows/$BRANCH/hetrixtools_agent.ps1", "$folderPath\hetrixtools_agent.ps1")
+$wc.DownloadFile("https://raw.githubusercontent.com/hetrixtools/agent-windows/$BRANCH/hetrixtools_agent.ps1", "$folderPath\hetrixtools_agent.ps1")
 Write-Host "... done."
 Write-Host "Downloading the config file..."
-$wc.DownloadFile("https://raw.githubusercontent.com/kefisto/agent-windows/$BRANCH/hetrixtools.cfg", "$folderPath\hetrixtools.cfg")
+$wc.DownloadFile("https://raw.githubusercontent.com/hetrixtools/agent-windows/$BRANCH/hetrixtools.cfg", "$folderPath\hetrixtools.cfg")
 Write-Host "... done."
 
 # Insert the Server ID into the config file
