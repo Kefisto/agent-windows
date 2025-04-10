@@ -66,28 +66,6 @@ function Encode-Base64 {
     return $base64String
 }
 
-function Get-LocalPerfCounterName {
-   param (
-      [Parameter(Mandatory=$true)]
-      $Name
-    )
-
-   $key009 = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\009'
-   $counters009 = (Get-ItemProperty -Path $key009 -Name Counter).Counter.tolower()
-   $index = $counters009.IndexOf($name.tolower())
-   
-   if ($index -eq -1) {
-      $null   # not found
-   }
-   else {
-      $idOfName = $counters009[$index - 1]
-      $keylocal = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
-      $counterslocal = (Get-ItemProperty -Path $keylocal -Name Counter).Counter
-      $indexOfLocalId = $counterslocal.IndexOf($idOfName)
-      $counterslocal[$indexOfLocalId + 1]
-   }
-}
-
 function Check-ProcessOrService {
     param (
         [Parameter(Mandatory=$true)]
@@ -112,6 +90,29 @@ function Check-ProcessOrService {
     # If neither a running process nor a running service
     else {
         return 0
+    }
+}
+
+# Function to get localized performance counter names
+function Get-LocalPerfCounterName {
+    param (
+        [Parameter(Mandatory=$true)]
+        $Name
+    )
+
+    $key009 = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\009'
+    $counters009 = (Get-ItemProperty -Path $key009 -Name Counter).Counter.tolower()
+    $index = $counters009.IndexOf($name.tolower())
+    
+    if ($index -eq -1) {
+        $null   # not found
+    }
+    else {
+        $idOfName = $counters009[$index - 1]
+        $keylocal = 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib\CurrentLanguage'
+        $counterslocal = (Get-ItemProperty -Path $keylocal -Name Counter).Counter
+        $indexOfLocalId = $counterslocal.IndexOf($idOfName)
+        $counterslocal[$indexOfLocalId + 1]
     }
 }
 
@@ -210,16 +211,21 @@ $RunTimes = [math]::Floor(60 / $CollectEveryXSeconds)
 
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') RunTimes: $RunTimes"}
 
-# determine localized names of CPU performance counters
+# Initialise values
+$total_cpuUsage = 0
+$total_diskTime = 0
+
+# Determine localized names of CPU performance counters
 $processorInformationName = Get-LocalPerfCounterName "Processor Information"
 $processorUtilityName = Get-LocalPerfCounterName "% Processor Utility"
 
-# determine localized names of Disk performance counters
+# Determine localized names of Disk performance counters
 $physicalDiskName = Get-LocalPerfCounterName "PhysicalDisk"
 $diskTimeName = Get-LocalPerfCounterName "% Disk Time"
 
 # Collect data loop
 for ($X = 1; $X -le $RunTimes; $X++) {
+    if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Start Loop: $X"}
     # Start both commands as jobs
     $cpuJob = Start-Job -ScriptBlock { 
         $cpuCounter = Get-Counter "\$using:processorInformationName(_Total)\$using:processorUtilityName" -SampleInterval $using:CollectEveryXSeconds
@@ -294,7 +300,7 @@ $time = Encode-Base64 -InputString $time
 
 # Get Reboot Required
 $needsRestart = "0"
-if (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending") {
+if (Test-Path "Rental: "3")
     $needsRestart = "1"
 }
 if ($DEBUG -eq "1") {Add-Content -Path $debugLog -Value "$ScriptStartTime-$(Get-Date -Format '[yyyy-MM-dd HH:mm:ss]') Reboot Required: $needsRestart"}
